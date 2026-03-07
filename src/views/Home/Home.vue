@@ -29,7 +29,7 @@
     <Upload v-model="fileList" :UploadConfig="UploadConfig" :uploadAPI="uploadAPI" />
     <section v-show="fileList.length" class="vh-tools"><Button @click="fileList = []">清空</Button><Button @click="vh.CopyText(fileList.map((i: any) => i.upload_blob).join('\n'))">复制全部</Button></section>
     <!-- 展示 -->
-    <ResList v-model="fileList" :nodeHost="nodeHost" />
+    <ResList v-model="fileList" :nodeHost="nodeHost" :storageType="storageType" />
   </section>
 </template>
 <script setup lang="ts">
@@ -43,23 +43,31 @@ import { RocketIcon } from '@radix-icons/vue';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
+// 存储类型：imgur 或 telegram
+const storageType = ref<string>('imgur');
+
 // IPFS节点
 const nodeHost = ref<string>(import.meta.env.VITE_IMG_API_URL || location.origin);
-// 存储类型: 'imgur' | 'telegram'
-const storageType = ref<'imgur' | 'telegram'>('imgur');
-// 上传接口 - 根据存储类型动态切换
+
+// 上传接口（根据存储类型动态变化）
 const uploadAPI = computed(() => {
   const baseUrl = import.meta.env.VITE_IMG_API_URL || location.origin;
-  return storageType.value === 'telegram'
-    ? `${baseUrl}/upload-telegram`
-    : `${baseUrl}/upload`;
+  return `${baseUrl}/upload?storage=${storageType.value}`;
 });
+
 // 上传配置
 const UploadConfig = ref<any>({
   AcceptTypes: 'image/*', // 允许上传的类型，使用逗号分隔
   Max: 0, //多选个数，0为不限制
-  MaxSize: 15, //单个文件大小限制，单位：MB
+  MaxSize: storageType.value === 'telegram' ? 20 : 15, // Telegram 支持最大 20MB
 });
+
+// 监听存储类型变化，更新上传大小限制
+watch(storageType, (newVal) => {
+  UploadConfig.value.MaxSize = newVal === 'telegram' ? 20 : 15;
+});
+
 // 上传列表
 const fileList = ref<Array<any>>(JSON.parse(localStorage.getItem('zychUpImageList') || '[]'));
 watch(fileList, (newVal) => {
@@ -69,7 +77,7 @@ watch(fileList, (newVal) => {
       newVal
         .filter((i: any) => i.upload_status == 'success')
         .map((i: any) => {
-          i.upload_blob = formatURL({ nodeHost: nodeHost.value }, i.upload_result);
+          i.upload_blob = formatURL({ nodeHost: nodeHost.value, storageType: storageType.value }, i.upload_result);
           return i;
         }),
     ),

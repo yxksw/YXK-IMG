@@ -3,35 +3,42 @@ const formatURL = (props: any, v: any, key?: string) => {
   let FILE_ID = '';
   const ERROR_MSG = `${v._vh_filename} 上传失败`;
 
+  // 判断存储类型
+  const storageType = props.storageType || 'imgur';
+
   try {
-    // Imgur 返回格式
-    if (v.data && v.data.link) {
-      FILE_ID = v.data.link.split('/').slice(-1)[0];
-    }
-    // Telegram 返回格式
-    else if (v.data && v.data.url) {
-      // Telegram 返回的是完整 URL，直接使用
-      const url = v.data.url;
-      if (key === 'md') {
-        return `![${v._vh_filename}](${url})`;
+    if (storageType === 'telegram') {
+      // Telegram 存储格式
+      FILE_ID = v[0]?.file_id || v.file_id;
+      if (!FILE_ID) {
+        // 尝试从 src 中提取 file_id
+        const src = v[0]?.src || v.src;
+        if (src) {
+          FILE_ID = src.split('/').pop();
+        }
       }
-      return url;
-    }
-    // 新的 Telegram 直接链接格式
-    else if (v.data && v.data.direct_url) {
-      const url = v.data.direct_url;
-      if (key === 'md') {
-        return `![${v._vh_filename}](${url})`;
+    } else {
+      // Imgur 存储格式
+      const link = v.data?.link || v[0]?.src;
+      if (link) {
+        FILE_ID = link.split('/').slice(-1)[0];
       }
-      return url;
     }
   } catch { }
 
-  // Imgur 格式回退
-  if (key === 'md') {
-    return FILE_ID ? `![${v._vh_filename}](${props.nodeHost}/v2/${FILE_ID})` : ERROR_MSG;
+  if (storageType === 'telegram') {
+    // Telegram 存储的 URL 格式
+    if (key == 'md') {
+      return FILE_ID ? `![${v._vh_filename || v.file_name}](${props.nodeHost}/file/${FILE_ID})` : ERROR_MSG;
+    }
+    return FILE_ID ? `${props.nodeHost}/file/${FILE_ID}` : ERROR_MSG;
+  } else {
+    // Imgur 存储的 URL 格式（保持原有逻辑）
+    if (key == 'md') {
+      return FILE_ID ? `![${v._vh_filename}](${props.nodeHost}/v2/${FILE_ID})` : ERROR_MSG;
+    }
+    return FILE_ID ? `${props.nodeHost}/v2/${FILE_ID}` : ERROR_MSG;
   }
-  return FILE_ID ? `${props.nodeHost}/v2/${FILE_ID}` : ERROR_MSG;
 };
 
 export { formatURL }

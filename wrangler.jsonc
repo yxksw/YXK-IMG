@@ -2,12 +2,18 @@
   "name": "zycs-img",
   "compatibility_date": "2025-04-09",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
   },
-  "kv_namespaces": [
-    {
-      "binding": "KV",
-      "id": "your_kv_namespace_id"
+}
+ "vars": {
+    // 默认存储类型: imgur 或 telegram
+    "DEFAULT_STORAGE": "imgur"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "DEFAULT_STORAGE": "imgur"
+      }
     }
-  ]
+  }
 }

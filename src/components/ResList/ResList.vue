@@ -21,7 +21,7 @@ import { formatURL } from '@/utils/index';
 import { useToast } from '@/components/ui/toast/use-toast';
 const { toast } = useToast();
 import LoadingImg from '@/assets/images/loading.gif';
-const props = defineProps(['modelValue', 'nodeHost']);
+const props = defineProps(['modelValue', 'nodeHost', 'storageType']);
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 
 // 复制CODE

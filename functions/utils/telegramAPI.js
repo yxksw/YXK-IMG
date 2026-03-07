@@ -1,6 +1,5 @@
 /**
  * Telegram API 封装类
- * 参考: CloudFlare-ImgBed
  */
 export class TelegramAPI {
     constructor(botToken, proxyUrl = '') {
@@ -89,10 +88,6 @@ export class TelegramAPI {
                 return getFileDetails(responseData.result.document);
             }
 
-            if (responseData.result.animation) {
-                return getFileDetails(responseData.result.animation);
-            }
-
             return null;
         } catch (error) {
             console.error('Error parsing Telegram response:', error.message);
@@ -142,32 +137,5 @@ export class TelegramAPI {
         });
 
         return response;
-    }
-
-    /**
-     * 删除消息（用于删除文件）
-     * @param {string} chatId - 聊天ID
-     * @param {string} messageId - 消息ID
-     * @returns {Promise<Object>} API响应结果
-     */
-    async deleteMessage(chatId, messageId) {
-        try {
-            const response = await fetch(`${this.baseURL}/deleteMessage`, {
-                method: 'POST',
-                headers: {
-                    ...this.defaultHeaders,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    message_id: messageId
-                })
-            });
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error deleting message:', error.message);
-            return { ok: false, error: error.message };
-        }
     }
 }
