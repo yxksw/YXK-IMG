@@ -86,41 +86,23 @@ async function uploadToTelegram(imgFile, env) {
   const fileType = imgFile.type;
   const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
 
-  const fileTypeMap = {
-    'image/jpeg': { url: 'sendPhoto', type: 'photo' },
-    'image/png': { url: 'sendPhoto', type: 'photo' },
-    'image/bmp': { url: 'sendPhoto', type: 'photo' },
-    'video/mp4': { url: 'sendVideo', type: 'video' },
-    'video/quicktime': { url: 'sendVideo', type: 'video' },
-    'video/webm': { url: 'sendVideo', type: 'video' },
-    'audio/mpeg': { url: 'sendAudio', type: 'audio' },
-    'audio/mp3': { url: 'sendAudio', type: 'audio' },
-    'audio/wav': { url: 'sendAudio', type: 'audio' },
-    'audio/ogg': { url: 'sendAudio', type: 'audio' },
-    'audio/flac': { url: 'sendAudio', type: 'audio' },
-    'audio/aac': { url: 'sendAudio', type: 'audio' },
-    'application/pdf': { url: 'sendDocument', type: 'document' },
-  };
+  const isImage = fileType.startsWith('image/');
+  const isVideo = fileType.startsWith('video/');
+  const isAudio = fileType.startsWith('audio/');
 
-  let sendFunction = fileTypeMap[fileType] || { url: 'sendDocument', type: 'document' };
+  let sendFunction = { url: 'sendDocument', type: 'document' };
 
-  if (fileType === 'image/gif' || fileExt === 'gif') {
-    sendFunction = { url: 'sendAnimation', type: 'animation' };
-  }
-
-  if (fileType === 'image/webp' || fileExt === 'webp') {
-    sendFunction = { url: 'sendAnimation', type: 'animation' };
-  }
-
-  if (fileExt === 'ico') {
-    sendFunction = { url: 'sendDocument', type: 'document' };
-  }
-
-  if (fileType.startsWith('video/')) {
+  if (isImage) {
+    if (fileType === 'image/gif' || fileExt === 'gif') {
+      sendFunction = { url: 'sendAnimation', type: 'animation' };
+    } else if (fileType === 'image/webp' || fileExt === 'webp') {
+      sendFunction = { url: 'sendAnimation', type: 'animation' };
+    } else {
+      sendFunction = { url: 'sendDocument', type: 'document' };
+    }
+  } else if (isVideo) {
     sendFunction = { url: 'sendVideo', type: 'video' };
-  }
-
-  if (fileType.startsWith('audio/')) {
+  } else if (isAudio) {
     sendFunction = { url: 'sendAudio', type: 'audio' };
   }
 
@@ -134,10 +116,29 @@ async function uploadToTelegram(imgFile, env) {
       fileName
     );
 
+    console.log('Telegram response:', JSON.stringify(responseData, null, 2));
+
+    if (!responseData.ok) {
+      return new Response(JSON.stringify({
+        error: 'Telegram API error',
+        description: responseData.description,
+        error_code: responseData.error_code
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const fileInfo = telegramAPI.getFileInfo(responseData);
 
     if (!fileInfo) {
-      throw new Error('Failed to get file info from Telegram response');
+      return new Response(JSON.stringify({
+        error: 'Failed to get file info from Telegram response',
+        raw_response: responseData
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const fileId = fileInfo.file_id;
@@ -147,7 +148,11 @@ async function uploadToTelegram(imgFile, env) {
       file_id: fileId,
       file_name: fileInfo.file_name,
       file_size: fileInfo.file_size,
-      storage: 'telegram'
+      storage: 'telegram',
+      debug: {
+        send_function: sendFunction,
+        file_type: fileType
+      }
     }]), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
@@ -155,6 +160,12 @@ async function uploadToTelegram(imgFile, env) {
 
   } catch (error) {
     console.error('Telegram upload error:', error);
-    throw new Error(`Telegram upload failed: ${error.message}`);
+    return new Response(JSON.stringify({
+      error: 'Telegram upload failed',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
