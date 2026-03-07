@@ -1,13 +1,63 @@
 import { TelegramAPI } from '../utils/telegramAPI.js';
 
+const MIME_TYPES = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'bmp': 'image/bmp',
+  'ico': 'image/x-icon',
+  'svg': 'image/svg+xml',
+  'mp4': 'video/mp4',
+  'webm': 'video/webm',
+  'mov': 'video/quicktime',
+  'mp3': 'audio/mpeg',
+  'wav': 'audio/wav',
+  'ogg': 'audio/ogg',
+  'flac': 'audio/flac',
+  'aac': 'audio/aac',
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'xls': 'application/vnd.ms-excel',
+  'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'ppt': 'application/vnd.ms-powerpoint',
+  'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'txt': 'text/plain',
+  'html': 'text/html',
+  'css': 'text/css',
+  'js': 'application/javascript',
+  'json': 'application/json',
+  'xml': 'application/xml',
+  'zip': 'application/zip',
+  'rar': 'application/vnd.rar',
+  '7z': 'application/x-7z-compressed',
+  'tar': 'application/x-tar',
+  'gz': 'application/gzip',
+};
+
+function getMimeType(filePath, fallback = 'application/octet-stream') {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  return MIME_TYPES[ext] || fallback;
+}
+
+function isImageType(mimeType) {
+  return mimeType.startsWith('image/');
+}
+
 export async function onRequestGet({ env, params, request }) {
-  const fileId = params.fileId;
+  let fileId = params.fileId;
 
   if (!fileId) {
     return new Response(JSON.stringify({ error: 'File ID is required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
+  }
+
+  if (fileId.includes('.')) {
+    fileId = fileId.split('.')[0];
   }
 
   const botToken = env.TG_BOT_TOKEN;
@@ -61,15 +111,18 @@ export async function onRequestGet({ env, params, request }) {
 
     const fileBlob = await response.blob();
 
+    const mimeType = getMimeType(filePath);
+    const fileName = filePath.split('/').pop() || fileId;
+
     const headers = new Headers();
-    const contentType = response.headers.get('Content-Type');
-    headers.set('Content-Type', contentType || 'application/octet-stream');
+    headers.set('Content-Type', mimeType);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
     headers.set('Access-Control-Allow-Origin', '*');
 
-    const contentDisposition = response.headers.get('Content-Disposition');
-    if (contentDisposition) {
-      headers.set('Content-Disposition', contentDisposition);
+    if (isImageType(mimeType)) {
+      headers.set('Content-Disposition', `inline; filename="${fileName}"`);
+    } else {
+      headers.set('Content-Disposition', `attachment; filename="${fileName}"`);
     }
 
     const etag = `"${fileId}-${fileBlob.size}"`;
@@ -127,10 +180,14 @@ export async function onRequestGet({ env, params, request }) {
 }
 
 export async function onRequestHead({ env, params }) {
-  const fileId = params.fileId;
+  let fileId = params.fileId;
 
   if (!fileId) {
     return new Response('File ID is required', { status: 400 });
+  }
+
+  if (fileId.includes('.')) {
+    fileId = fileId.split('.')[0];
   }
 
   const botToken = env.TG_BOT_TOKEN;
@@ -148,10 +205,20 @@ export async function onRequestHead({ env, params }) {
       return new Response('File not found', { status: 404 });
     }
 
+    const mimeType = getMimeType(filePath);
+    const fileName = filePath.split('/').pop() || fileId;
+
     const headers = new Headers();
+    headers.set('Content-Type', mimeType);
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
     headers.set('Access-Control-Allow-Origin', '*');
+
+    if (isImageType(mimeType)) {
+      headers.set('Content-Disposition', `inline; filename="${fileName}"`);
+    } else {
+      headers.set('Content-Disposition', `attachment; filename="${fileName}"`);
+    }
 
     return new Response(null, {
       status: 200,

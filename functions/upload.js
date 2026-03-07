@@ -111,13 +111,20 @@ async function uploadToTelegram(imgFile, env) {
 
   let sendFunction = { url: 'sendDocument', type: 'document' };
 
+  const isImage = fileType.startsWith('image/');
   const isVideo = fileType.startsWith('video/');
   const isAudio = fileType.startsWith('audio/');
 
-  if (fileType === 'image/gif' || fileExt === 'gif') {
-    sendFunction = { url: 'sendAnimation', type: 'animation' };
-  } else if (fileType === 'image/webp' || fileExt === 'webp') {
-    sendFunction = { url: 'sendAnimation', type: 'animation' };
+  if (isImage) {
+    if (fileType === 'image/gif' || fileExt === 'gif') {
+      sendFunction = { url: 'sendAnimation', type: 'animation' };
+    } else if (fileType === 'image/webp' || fileExt === 'webp') {
+      sendFunction = { url: 'sendAnimation', type: 'animation' };
+    } else if (fileExt === 'ico') {
+      sendFunction = { url: 'sendDocument', type: 'document' };
+    } else {
+      sendFunction = { url: 'sendPhoto', type: 'photo' };
+    }
   } else if (isVideo) {
     sendFunction = { url: 'sendVideo', type: 'video' };
   } else if (isAudio) {
@@ -182,15 +189,18 @@ async function uploadToTelegram(imgFile, env) {
 
     const fileUrl = telegramAPI.getFileUrl(filePath);
 
+    const ext = fileExt || filePath.split('.').pop() || 'bin';
+
     return new Response(
       JSON.stringify([
         {
-          src: `/file/${fileId}`,
+          src: `/file/${fileId}.${ext}`,
           file_id: fileId,
           file_path: filePath,
           file_url: fileUrl,
           file_name: fileInfo.file_name,
           file_size: fileInfo.file_size,
+          file_type: fileType,
           storage: 'telegram',
         },
       ]),
