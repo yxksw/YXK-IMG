@@ -85,12 +85,24 @@ async function uploadToTelegram(imgFile, env) {
   const fileName = imgFile.name;
   const fileType = imgFile.type;
   const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+  const fileSize = imgFile.size;
+
+  const CHUNK_SIZE = 16 * 1024 * 1024;
+  if (fileSize > CHUNK_SIZE) {
+    return new Response(JSON.stringify({
+      error: 'File too large',
+      message: `File size (${(fileSize / 1024 / 1024).toFixed(2)}MB) exceeds the 16MB limit for Telegram Bot API`
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  let sendFunction = { url: 'sendDocument', type: 'document' };
 
   const isImage = fileType.startsWith('image/');
   const isVideo = fileType.startsWith('video/');
   const isAudio = fileType.startsWith('audio/');
-
-  let sendFunction = { url: 'sendDocument', type: 'document' };
 
   if (isImage) {
     if (fileType === 'image/gif' || fileExt === 'gif') {
@@ -98,7 +110,7 @@ async function uploadToTelegram(imgFile, env) {
     } else if (fileType === 'image/webp' || fileExt === 'webp') {
       sendFunction = { url: 'sendAnimation', type: 'animation' };
     } else {
-      sendFunction = { url: 'sendDocument', type: 'document' };
+      sendFunction = { url: 'sendPhoto', type: 'photo' };
     }
   } else if (isVideo) {
     sendFunction = { url: 'sendVideo', type: 'video' };
@@ -143,15 +155,33 @@ async function uploadToTelegram(imgFile, env) {
 
     const fileId = fileInfo.file_id;
 
+    const filePath = await telegramAPI.getFilePath(fileId);
+    if (!filePath) {
+      return new Response(JSON.stringify({
+        error: 'Failed to get file path',
+        message: 'The file was uploaded but the file path could not be retrieved. This usually means the bot does not have permission to access this file.',
+        file_id: fileId,
+        possible_cause: 'The bot may not be an admin in the channel, or the channel is private'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const fileUrl = telegramAPI.getFileUrl(filePath);
+
     return new Response(JSON.stringify([{
       src: `/file/${fileId}`,
       file_id: fileId,
+      file_path: filePath,
+      file_url: fileUrl,
       file_name: fileInfo.file_name,
       file_size: fileInfo.file_size,
       storage: 'telegram',
       debug: {
         send_function: sendFunction,
-        file_type: fileType
+        file_type: fileType,
+        chat_id: chatId
       }
     }]), {
       status: 200,
