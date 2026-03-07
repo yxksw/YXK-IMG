@@ -82,15 +82,11 @@ export async function onRequest({ request, env }) {
       })
     }
 
-    // 构建文件访问 URL
-    const filePath = fileInfo.result.file_path
-    const fileUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`
-
-    // 返回与 imgur 格式兼容的响应
+    // 返回与 imgur 格式兼容的响应，使用代理链接
     return new Response(JSON.stringify({
       data: {
         id: fileId,
-        link: fileUrl,
+        link: `${request.headers.get('origin') || ''}/tg-proxy/${fileId}`,
         type: imgFile.type,
         name: imgFile.name,
         size: imgFile.size
