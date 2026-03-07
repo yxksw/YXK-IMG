@@ -116,12 +116,22 @@ export class TelegramAPI {
             if (responseData.ok) {
                 return responseData.result.file_path;
             } else {
+                console.error('Telegram getFile error:', responseData.description);
                 return null;
             }
         } catch (error) {
             console.error('Error getting file path:', error.message);
             return null;
         }
+    }
+
+    /**
+     * 获取文件完整URL
+     * @param {string} filePath - 文件路径
+     * @returns {string} 文件完整URL
+     */
+    getFileUrl(filePath) {
+        return `${this.fileDomain}/file/bot${this.botToken}/${filePath}`;
     }
 
     /**
@@ -135,7 +145,7 @@ export class TelegramAPI {
             throw new Error(`File path not found for fileId: ${fileId}`);
         }
 
-        const fullURL = `${this.fileDomain}/file/bot${this.botToken}/${filePath}`;
+        const fullURL = this.getFileUrl(filePath);
         const response = await fetch(fullURL, {
             headers: this.defaultHeaders
         });

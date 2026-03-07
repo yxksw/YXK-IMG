@@ -4,23 +4,59 @@ export async function onRequestGet({ env, params, request }) {
   const fileId = params.fileId;
 
   if (!fileId) {
-    return new Response('File ID is required', { status: 400 });
+    return new Response(JSON.stringify({ error: 'File ID is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   const botToken = env.TG_BOT_TOKEN;
   const proxyUrl = env.TG_PROXY_URL || '';
 
   if (!botToken) {
-    return new Response('Telegram storage not configured', { status: 500 });
+    return new Response(JSON.stringify({
+      error: 'Telegram storage not configured',
+      message: 'TG_BOT_TOKEN environment variable is not set'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   try {
     const telegramAPI = new TelegramAPI(botToken, proxyUrl);
 
-    const response = await telegramAPI.getFileContent(fileId);
+    const filePath = await telegramAPI.getFilePath(fileId);
+
+    if (!filePath) {
+      return new Response(JSON.stringify({
+        error: 'File not found',
+        message: 'Could not get file path from Telegram API. The file_id may be invalid or the bot may not have access to this file.',
+        file_id: fileId
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const fileUrl = telegramAPI.getFileUrl(filePath);
+
+    const response = await fetch(fileUrl, {
+      headers: telegramAPI.defaultHeaders
+    });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.statusText}`);
+      const errorText = await response.text();
+      return new Response(JSON.stringify({
+        error: 'Failed to fetch file from Telegram',
+        status: response.status,
+        statusText: response.statusText,
+        details: errorText,
+        file_path: filePath
+      }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const fileBlob = await response.blob();
@@ -80,7 +116,13 @@ export async function onRequestGet({ env, params, request }) {
 
   } catch (error) {
     console.error('File fetch error:', error);
-    return new Response(`Error fetching file: ${error.message}`, { status: 500 });
+    return new Response(JSON.stringify({
+      error: 'Internal server error',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
