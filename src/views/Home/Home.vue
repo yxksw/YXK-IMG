@@ -5,7 +5,7 @@
       <AlertDescription class="p-0 text-xs sm:text-sm">
         <p class="pt-2">无限图片储存数量，你可以上传不限数量的图片！</p>
         <p>图片首次访问后缓存，"永久"有效，包括全球分布的 CDN，以确保尽可能快地提供图像.</p>
-        <p>YXK 图床 是 <a class="text-slate-400" href="https://www.050815.xyz" target="_blank" title="异飨客">异飨客</a> 的图床，基于imgur。</p>
+        <p>YXK 图床 是 <a class="text-slate-400" href="https://www.050815.xyz" target="_blank" title="异飨客">异飨客</a> 的图床，支持 Imgur 和 Telegram 存储。</p>
         <p style="font-weight: bold">开源地址: <a class="text-[#0969da]" href="https://github.com/yxksw/YXK-IMG" target="_blank">YXK-IMG</a></p>
       </AlertDescription>
     </Alert>
@@ -26,7 +26,7 @@
       </div>
     </div>
     <!-- 上传 -->
-    <Upload v-model="fileList" :UploadConfig="UploadConfig" :uploadAPI="uploadAPI" :storageType="storageType" />
+    <Upload v-model="fileList" :UploadConfig="UploadConfig" :uploadAPI="uploadAPI" />
     <section v-show="fileList.length" class="vh-tools"><Button @click="fileList = []">清空</Button><Button @click="vh.CopyText(fileList.map((i: any) => i.upload_blob).join('\n'))">复制全部</Button></section>
     <!-- 展示 -->
     <ResList v-model="fileList" :nodeHost="nodeHost" />
@@ -34,7 +34,7 @@
 </template>
 <script setup lang="ts">
 import vh from 'vh-plugin';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { formatURL } from '@/utils/index';
 import { Button } from '@/components/ui/button';
 import Upload from '@/components/Upload/Upload.vue';
@@ -45,10 +45,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 // IPFS节点
 const nodeHost = ref<string>(import.meta.env.VITE_IMG_API_URL || location.origin);
-// 存储类型: imgur | telegram
-const storageType = ref<string>('imgur');
-// 上传接口
-const uploadAPI = ref<string>(`${import.meta.env.VITE_IMG_API_URL || location.origin}/upload`);
+// 存储类型: 'imgur' | 'telegram'
+const storageType = ref<'imgur' | 'telegram'>('imgur');
+// 上传接口 - 根据存储类型动态切换
+const uploadAPI = computed(() => {
+  const baseUrl = import.meta.env.VITE_IMG_API_URL || location.origin;
+  return storageType.value === 'telegram'
+    ? `${baseUrl}/upload-telegram`
+    : `${baseUrl}/upload`;
+});
 // 上传配置
 const UploadConfig = ref<any>({
   AcceptTypes: 'image/*', // 允许上传的类型，使用逗号分隔

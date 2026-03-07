@@ -21,7 +21,7 @@ import { ref, onMounted } from 'vue';
 import { useToast } from '@/components/ui/toast/use-toast';
 const { toast } = useToast();
 // 参数
-const props = defineProps(['modelValue', 'UploadConfig', 'uploadAPI', 'storageType']);
+const props = defineProps(['modelValue', 'UploadConfig', 'uploadAPI']);
 const emits = defineEmits(['update:modelValue']);
 const UploadConfig = ref<any>(props.UploadConfig);
 // 文件上传列表变化事件
@@ -95,13 +95,8 @@ const fileUpload = async (FileListArr: Array<any>) => {
     emits('update:modelValue', [...FileListArr]);
     // 同步上传状态======
     try {
-      // 根据存储类型选择上传接口
-      const uploadUrl = props.storageType === 'telegram'
-        ? props.uploadAPI.replace('/upload', '/upload-telegram')
-        : props.uploadAPI;
-
       // 发送请求
-      const res = await fetch(uploadUrl, {
+      const res = await fetch(props.uploadAPI, {
         method: 'POST',
         body: formData,
       });
