@@ -96,10 +96,10 @@ const fileUpload = async (FileListArr: Array<any>) => {
     // 同步上传状态======
     try {
       // 根据存储类型选择上传接口
-      const uploadUrl = props.storageType === 'telegram' 
+      const uploadUrl = props.storageType === 'telegram'
         ? props.uploadAPI.replace('/upload', '/upload-telegram')
         : props.uploadAPI;
-      
+
       // 发送请求
       const res = await fetch(uploadUrl, {
         method: 'POST',

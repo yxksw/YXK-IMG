@@ -1,13 +1,12 @@
-export async function onRequestGet({ request, env }) {
-  const { url } = request
-  const newUrl = new URL(url)
-  const fileId = newUrl.pathname.split('/').pop()
+export async function onRequestGet({ request, env, params }) {
+  const fileId = params.fileId
   
   if (!fileId) {
-    return new Response('File ID not found', { status: 404 })
+    return new Response('File ID is required', { status: 400 })
   }
 
   try {
+    // 从环境变量获取 Telegram Bot Token
     const botToken = env.TG_BOT_TOKEN
     
     if (!botToken) {
@@ -23,27 +22,29 @@ export async function onRequestGet({ request, env }) {
       return new Response(`Failed to get file info: ${fileInfo.description}`, { status: 500 })
     }
 
+    // 获取文件内容
     const filePath = fileInfo.result.file_path
     const fileUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`
-
-    // 获取文件内容
+    
     const fileResponse = await fetch(fileUrl)
     
     if (!fileResponse.ok) {
       return new Response('Failed to fetch file', { status: 500 })
     }
 
-    // 返回文件内容，添加缓存头
-    const response = new Response(fileResponse.body, {
+    // 获取文件内容类型
+    const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream'
+    const fileData = await fileResponse.arrayBuffer()
+
+    // 返回文件内容，设置合适的 headers 让浏览器直接展示图片
+    return new Response(fileData, {
       status: 200,
       headers: {
-        'Content-Type': fileResponse.headers.get('Content-Type') || 'application/octet-stream',
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000',
         'Access-Control-Allow-Origin': '*'
       }
     })
-
-    return response
 
   } catch (error) {
     return new Response(`Error: ${error.message}`, { status: 500 })
