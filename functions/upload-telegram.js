@@ -30,13 +30,21 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    // 构建 Telegram API URL
-    const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendDocument`;
+    // 判断是否为图片类型
+    const isImage = imgFile.type.startsWith('image/');
+
+    // 根据文件类型选择 API：图片使用 sendPhoto，其他使用 sendDocument
+    const telegramApiUrl = isImage ? `https://api.telegram.org/bot${botToken}/sendPhoto` : `https://api.telegram.org/bot${botToken}/sendDocument`;
 
     // 创建新的 FormData 发送到 Telegram
     const telegramFormData = new FormData();
     telegramFormData.append('chat_id', chatId);
-    telegramFormData.append('document', imgFile);
+
+    if (isImage) {
+      telegramFormData.append('photo', imgFile);
+    } else {
+      telegramFormData.append('document', imgFile);
+    }
 
     // 发送请求到 Telegram
     const telegramResponse = await fetch(telegramApiUrl, {
@@ -59,8 +67,14 @@ export async function onRequest({ request, env }) {
       );
     }
 
-    // 获取文件信息
-    const fileId = telegramResult.result.document?.file_id || telegramResult.result.photo?.[telegramResult.result.photo.length - 1]?.file_id;
+    // 获取文件信息：图片取最大尺寸的照片，文档取 document
+    let fileId;
+    if (isImage && telegramResult.result.photo) {
+      // photo 是一个数组，取最后一个（最大尺寸）
+      fileId = telegramResult.result.photo[telegramResult.result.photo.length - 1].file_id;
+    } else {
+      fileId = telegramResult.result.document?.file_id;
+    }
 
     if (!fileId) {
       return new Response(JSON.stringify({ error: 'Failed to get file ID' }), {
