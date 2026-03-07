@@ -111,18 +111,13 @@ async function uploadToTelegram(imgFile, env) {
 
   let sendFunction = { url: 'sendDocument', type: 'document' };
 
-  const isImage = fileType.startsWith('image/');
   const isVideo = fileType.startsWith('video/');
   const isAudio = fileType.startsWith('audio/');
 
-  if (isImage) {
-    if (fileType === 'image/gif' || fileExt === 'gif') {
-      sendFunction = { url: 'sendAnimation', type: 'animation' };
-    } else if (fileType === 'image/webp' || fileExt === 'webp') {
-      sendFunction = { url: 'sendAnimation', type: 'animation' };
-    } else {
-      sendFunction = { url: 'sendPhoto', type: 'photo' };
-    }
+  if (fileType === 'image/gif' || fileExt === 'gif') {
+    sendFunction = { url: 'sendAnimation', type: 'animation' };
+  } else if (fileType === 'image/webp' || fileExt === 'webp') {
+    sendFunction = { url: 'sendAnimation', type: 'animation' };
   } else if (isVideo) {
     sendFunction = { url: 'sendVideo', type: 'video' };
   } else if (isAudio) {
@@ -132,14 +127,13 @@ async function uploadToTelegram(imgFile, env) {
   try {
     const responseData = await telegramAPI.sendFile(imgFile, chatId, sendFunction.url, sendFunction.type, '', fileName);
 
-    console.log('Telegram response:', JSON.stringify(responseData, null, 2));
-
     if (!responseData.ok) {
       return new Response(
         JSON.stringify({
           error: 'Telegram API error',
           description: responseData.description,
           error_code: responseData.error_code,
+          raw_response: responseData,
         }),
         {
           status: 500,
@@ -166,13 +160,18 @@ async function uploadToTelegram(imgFile, env) {
     const fileId = fileInfo.file_id;
 
     const filePath = await telegramAPI.getFilePath(fileId);
+
     if (!filePath) {
+      const getFileResponse = await fetch(`${telegramAPI.baseURL}/getFile?file_id=${fileId}`);
+      const getFileData = await getFileResponse.json();
+
       return new Response(
         JSON.stringify({
-          error: 'Failed to get file path',
-          message: 'The file was uploaded but the file path could not be retrieved. This usually means the bot does not have permission to access this file.',
+          error: 'Failed to get file path - Bot may not have permission',
           file_id: fileId,
-          possible_cause: 'The bot may not be an admin in the channel, or the channel is private',
+          send_function: sendFunction,
+          get_file_response: getFileData,
+          possible_fix: 'Make sure the bot is an admin in the channel with "Post Messages" permission',
         }),
         {
           status: 500,
@@ -193,11 +192,6 @@ async function uploadToTelegram(imgFile, env) {
           file_name: fileInfo.file_name,
           file_size: fileInfo.file_size,
           storage: 'telegram',
-          debug: {
-            send_function: sendFunction,
-            file_type: fileType,
-            chat_id: chatId,
-          },
         },
       ]),
       {
@@ -211,6 +205,7 @@ async function uploadToTelegram(imgFile, env) {
       JSON.stringify({
         error: 'Telegram upload failed',
         message: error.message,
+        stack: error.stack,
       }),
       {
         status: 500,

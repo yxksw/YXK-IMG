@@ -3,15 +3,8 @@
   "compatibility_date": "2025-04-09",
   "assets": {
     "directory": "./dist"
-  },,
+  },
   "vars": {
     "DEFAULT_STORAGE": "imgur"
-  },
-  "env": {
-    "production": {
-      "vars": {
-        "DEFAULT_STORAGE": "imgur"
-      }
-    }
   }
 }
