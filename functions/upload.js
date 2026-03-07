@@ -4,7 +4,6 @@ export async function onRequest({ request, env }) {
   const { method } = request;
   const url = new URL(request.url);
 
-  // 获取存储类型参数，默认使用 imgur
   const storageType = url.searchParams.get('storage') || env.DEFAULT_STORAGE || 'imgur';
 
   if (method !== 'POST') {
@@ -22,7 +21,6 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    // 根据存储类型选择上传方式
     switch (storageType.toLowerCase()) {
       case 'telegram':
         return await uploadToTelegram(imgFile, env);
@@ -39,7 +37,6 @@ export async function onRequest({ request, env }) {
   }
 }
 
-// 上传到 Imgur
 async function uploadToImgur(imgFile) {
   const body = new FormData();
   body.append('image', imgFile);
@@ -59,7 +56,6 @@ async function uploadToImgur(imgFile) {
 
   const data = await response.json();
 
-  // 返回统一的响应格式
   return new Response(JSON.stringify([{
     src: data.data.link,
     delete_url: data.data.deletehash,
@@ -70,9 +66,7 @@ async function uploadToImgur(imgFile) {
   });
 }
 
-// 上传到 Telegram
 async function uploadToTelegram(imgFile, env) {
-  // 从环境变量获取 Telegram 配置
   const botToken = env.TG_BOT_TOKEN;
   const chatId = env.TG_CHAT_ID;
   const proxyUrl = env.TG_PROXY_URL || '';
@@ -88,37 +82,49 @@ async function uploadToTelegram(imgFile, env) {
 
   const telegramAPI = new TelegramAPI(botToken, proxyUrl);
 
-  // 获取文件信息
   const fileName = imgFile.name;
   const fileType = imgFile.type;
   const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
 
-  // 选择对应的发送接口
   const fileTypeMap = {
-    'image/': { url: 'sendPhoto', type: 'photo' },
-    'video/': { url: 'sendVideo', type: 'video' },
-    'audio/': { url: 'sendAudio', type: 'audio' },
+    'image/jpeg': { url: 'sendPhoto', type: 'photo' },
+    'image/png': { url: 'sendPhoto', type: 'photo' },
+    'image/bmp': { url: 'sendPhoto', type: 'photo' },
+    'video/mp4': { url: 'sendVideo', type: 'video' },
+    'video/quicktime': { url: 'sendVideo', type: 'video' },
+    'video/webm': { url: 'sendVideo', type: 'video' },
+    'audio/mpeg': { url: 'sendAudio', type: 'audio' },
+    'audio/mp3': { url: 'sendAudio', type: 'audio' },
+    'audio/wav': { url: 'sendAudio', type: 'audio' },
+    'audio/ogg': { url: 'sendAudio', type: 'audio' },
+    'audio/flac': { url: 'sendAudio', type: 'audio' },
+    'audio/aac': { url: 'sendAudio', type: 'audio' },
     'application/pdf': { url: 'sendDocument', type: 'document' },
   };
 
-  const defaultType = { url: 'sendDocument', type: 'document' };
+  let sendFunction = fileTypeMap[fileType] || { url: 'sendDocument', type: 'document' };
 
-  let sendFunction = Object.keys(fileTypeMap).find(key => fileType.startsWith(key))
-    ? fileTypeMap[Object.keys(fileTypeMap).find(key => fileType.startsWith(key))]
-    : defaultType;
-
-  // GIF、WebP 等特殊处理
-  if (fileType === 'image/gif' || fileType === 'image/webp' || fileExt === 'gif' || fileExt === 'webp') {
+  if (fileType === 'image/gif' || fileExt === 'gif') {
     sendFunction = { url: 'sendAnimation', type: 'animation' };
   }
 
-  // ICO 文件使用 sendDocument
+  if (fileType === 'image/webp' || fileExt === 'webp') {
+    sendFunction = { url: 'sendAnimation', type: 'animation' };
+  }
+
   if (fileExt === 'ico') {
-    sendFunction = defaultType;
+    sendFunction = { url: 'sendDocument', type: 'document' };
+  }
+
+  if (fileType.startsWith('video/')) {
+    sendFunction = { url: 'sendVideo', type: 'video' };
+  }
+
+  if (fileType.startsWith('audio/')) {
+    sendFunction = { url: 'sendAudio', type: 'audio' };
   }
 
   try {
-    // 发送文件到 Telegram
     const responseData = await telegramAPI.sendFile(
       imgFile,
       chatId,
@@ -128,17 +134,14 @@ async function uploadToTelegram(imgFile, env) {
       fileName
     );
 
-    // 获取文件信息
     const fileInfo = telegramAPI.getFileInfo(responseData);
 
     if (!fileInfo) {
       throw new Error('Failed to get file info from Telegram response');
     }
 
-    // 构建文件访问链接
     const fileId = fileInfo.file_id;
 
-    // 返回统一的响应格式
     return new Response(JSON.stringify([{
       src: `/file/${fileId}`,
       file_id: fileId,

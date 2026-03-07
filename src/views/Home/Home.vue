@@ -10,7 +10,6 @@
       </AlertDescription>
     </Alert>
 
-    <!-- 工具栏 -->
     <div class="pt-6 flex items-center text-sm">
       <div class="sync shrink-0">
         <RadioGroup v-model="storageType" class="flex items-center gap-4 [&>label]:flex [&>label]:items-center [&>label]:space-x-2 [&>label]:cursor-pointer">
@@ -25,10 +24,8 @@
         </RadioGroup>
       </div>
     </div>
-    <!-- 上传 -->
     <Upload v-model="fileList" :UploadConfig="UploadConfig" :uploadAPI="uploadAPI" />
     <section v-show="fileList.length" class="vh-tools"><Button @click="fileList = []">清空</Button><Button @click="vh.CopyText(fileList.map((i: any) => i.upload_blob).join('\n'))">复制全部</Button></section>
-    <!-- 展示 -->
     <ResList v-model="fileList" :nodeHost="imageHost" :storageType="storageType" />
   </section>
 </template>
@@ -44,33 +41,27 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-// 存储类型：imgur 或 telegram
-const storageType = ref<string>('imgur');
+const storageType = ref<string>(localStorage.getItem('storageType') || 'imgur');
 
-// API 节点（用于上传）
 const nodeHost = ref<string>(import.meta.env.VITE_IMG_API_URL || location.origin);
 
-// 图片访问域名（用于显示图片链接）
 const imageHost = ref<string>(import.meta.env.VITE_IMG_HOST_URL || import.meta.env.VITE_IMG_API_URL || location.origin);
 
-// 上传接口（根据存储类型动态变化）
 const uploadAPI = computed(() => {
   return `${nodeHost.value}/upload?storage=${storageType.value}`;
 });
 
-// 上传配置
 const UploadConfig = ref<any>({
-  AcceptTypes: 'image/*', // 允许上传的类型，使用逗号分隔
-  Max: 0, //多选个数，0为不限制
-  MaxSize: storageType.value === 'telegram' ? 20 : 15, // Telegram 支持最大 20MB
+  AcceptTypes: 'image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.json,.xml,.html,.css,.js,.ts,.zip,.rar,.7z,.tar,.gz',
+  Max: 0,
+  MaxSize: storageType.value === 'telegram' ? 20 : 15,
 });
 
-// 监听存储类型变化，更新上传大小限制
 watch(storageType, (newVal) => {
+  localStorage.setItem('storageType', newVal);
   UploadConfig.value.MaxSize = newVal === 'telegram' ? 20 : 15;
 });
 
-// 上传列表
 const fileList = ref<Array<any>>(JSON.parse(localStorage.getItem('zychUpImageList') || '[]'));
 watch(fileList, (newVal) => {
   localStorage.setItem(

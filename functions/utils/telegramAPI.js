@@ -1,11 +1,11 @@
 /**
  * Telegram API 封装类
+ * 参考 CloudFlare-ImgBed 项目实现
  */
 export class TelegramAPI {
     constructor(botToken, proxyUrl = '') {
         this.botToken = botToken;
         this.proxyUrl = proxyUrl;
-        // 如果设置了代理域名，使用代理域名，否则使用官方 API
         const apiDomain = proxyUrl ? `https://${proxyUrl}` : 'https://api.telegram.org';
         this.baseURL = `${apiDomain}/bot${this.botToken}`;
         this.fileDomain = proxyUrl ? `https://${proxyUrl}` : 'https://api.telegram.org';
@@ -20,6 +20,8 @@ export class TelegramAPI {
      * @param {string} chatId - 聊天ID
      * @param {string} functionName - API方法名（如：sendPhoto, sendDocument等）
      * @param {string} functionType - 文件类型参数名（如：photo, document等）
+     * @param {string} caption - 文件说明
+     * @param {string} fileName - 文件名
      * @returns {Promise<Object>} API响应结果
      */
     async sendFile(file, chatId, functionName, functionType, caption = '', fileName = '') {
@@ -45,9 +47,7 @@ export class TelegramAPI {
             throw new Error(`Telegram API error: ${response.statusText}`);
         }
 
-        // 解析响应数据
         const responseData = await response.json();
-
         return responseData;
     }
 
@@ -86,6 +86,10 @@ export class TelegramAPI {
 
             if (responseData.result.document) {
                 return getFileDetails(responseData.result.document);
+            }
+
+            if (responseData.result.animation) {
+                return getFileDetails(responseData.result.animation);
             }
 
             return null;
@@ -137,5 +141,15 @@ export class TelegramAPI {
         });
 
         return response;
+    }
+
+    /**
+     * 判断是否为Telegram频道
+     * @param {Object} metadata - 文件元数据
+     * @returns {boolean}
+     */
+    static isTgChannel(metadata) {
+        const channel = metadata?.Channel;
+        return channel === 'Telegram' || channel === 'TelegramNew';
     }
 }
