@@ -1,64 +1,109 @@
+/**
+ * Telegram 文件代理
+ * 参考 CloudFlare-ImgBed 实现
+ */
+
+/**
+ * 获取文件路径
+ */
+async function getFilePath(fileId, botToken) {
+  const url = `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  if (!data.ok) {
+    throw new Error(data.description);
+  }
+  
+  return data.result.file_path;
+}
+
+/**
+ * 获取文件内容
+ */
+async function getFileContent(filePath, botToken) {
+  const url = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.statusText}`);
+  }
+  
+  return response;
+}
+
+/**
+ * 根据文件路径获取 Content-Type
+ */
+function getContentType(filePath) {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  
+  const mimeTypes = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'bmp': 'image/bmp',
+    'svg': 'image/svg+xml',
+    'ico': 'image/x-icon',
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'mov': 'video/quicktime',
+    'pdf': 'application/pdf',
+    'txt': 'text/plain',
+    'json': 'application/json'
+  };
+  
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
 export async function onRequestGet({ request, env, params }) {
-  const fileId = params.fileId
+  const fileId = params.fileId;
   
   if (!fileId) {
-    return new Response('File ID is required', { status: 400 })
+    return new Response('File ID is required', { status: 400 });
   }
 
   try {
-    // 从环境变量获取 Telegram Bot Token
-    const botToken = env.TG_BOT_TOKEN
+    // 从环境变量获取 Bot Token
+    const botToken = env.TG_BOT_TOKEN;
     
     if (!botToken) {
-      return new Response('Telegram configuration missing', { status: 500 })
+      return new Response('Telegram configuration missing', { status: 500 });
     }
 
     // 获取文件路径
-    const fileInfoUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`
-    const fileInfoResponse = await fetch(fileInfoUrl)
-    const fileInfo = await fileInfoResponse.json()
-
-    if (!fileInfo.ok) {
-      return new Response(`Failed to get file info: ${fileInfo.description}`, { status: 500 })
-    }
-
+    const filePath = await getFilePath(fileId, botToken);
+    
     // 获取文件内容
-    const filePath = fileInfo.result.file_path
-    const fileUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`
+    const fileResponse = await getFileContent(filePath, botToken);
     
-    const fileResponse = await fetch(fileUrl)
+    // 获取文件数据
+    const fileData = await fileResponse.arrayBuffer();
     
-    if (!fileResponse.ok) {
-      return new Response('Failed to fetch file', { status: 500 })
-    }
+    // 确定 Content-Type
+    const contentType = getContentType(filePath);
+    
+    // 判断是否为图片或视频（可以直接展示的类型）
+    const isInline = contentType.startsWith('image/') || 
+                     contentType.startsWith('video/') ||
+                     contentType === 'application/pdf';
 
-    // 从文件路径获取扩展名并确定 Content-Type
-    const ext = filePath.split('.').pop()?.toLowerCase() || ''
-    const mimeTypes = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'bmp': 'image/bmp',
-      'svg': 'image/svg+xml',
-      'ico': 'image/x-icon'
-    }
-    const contentType = mimeTypes[ext] || fileResponse.headers.get('content-type') || 'application/octet-stream'
-    const fileData = await fileResponse.arrayBuffer()
-
-    // 返回文件内容，设置合适的 headers 让浏览器直接展示图片
+    // 返回文件内容
     return new Response(fileData, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000',
+        'Content-Length': fileData.byteLength.toString(),
+        'Cache-Control': 'public, max-age=31536000, immutable',
         'Access-Control-Allow-Origin': '*',
-        'Content-Disposition': 'inline'
+        ...(isInline && { 'Content-Disposition': 'inline' })
       }
-    })
+    });
 
   } catch (error) {
-    return new Response(`Error: ${error.message}`, { status: 500 })
+    console.error('Error serving file:', error);
+    return new Response(`Error: ${error.message}`, { status: 500 });
   }
 }
