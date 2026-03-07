@@ -13,20 +13,20 @@
     <!-- 工具栏 -->
     <div class="pt-6 flex items-center text-sm">
       <div class="sync shrink-0">
-        <RadioGroup default-value="sync" class="flex items-center gap-4 [&>label]:flex [&>label]:items-center [&>label]:space-x-2 [&>label]:cursor-pointer">
-          <Label for="sync">
-            <RadioGroupItem id="sync" value="sync" />
+        <RadioGroup v-model="storageType" class="flex items-center gap-4 [&>label]:flex [&>label]:items-center [&>label]:space-x-2 [&>label]:cursor-pointer">
+          <Label for="imgur">
+            <RadioGroupItem id="imgur" value="imgur" />
             <span>Imgur</span>
           </Label>
-          <Label for="nosync">
-            <RadioGroupItem id="nosync" value="nosync" disabled />
-            <span class="text-gray-300">待定</span>
+          <Label for="telegram">
+            <RadioGroupItem id="telegram" value="telegram" />
+            <span>Telegram</span>
           </Label>
         </RadioGroup>
       </div>
     </div>
     <!-- 上传 -->
-    <Upload v-model="fileList" :UploadConfig="UploadConfig" :uploadAPI="uploadAPI" />
+    <Upload v-model="fileList" :UploadConfig="UploadConfig" :uploadAPI="uploadAPI" :storageType="storageType" />
     <section v-show="fileList.length" class="vh-tools"><Button @click="fileList = []">清空</Button><Button @click="vh.CopyText(fileList.map((i: any) => i.upload_blob).join('\n'))">复制全部</Button></section>
     <!-- 展示 -->
     <ResList v-model="fileList" :nodeHost="nodeHost" />
@@ -45,6 +45,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 // IPFS节点
 const nodeHost = ref<string>(import.meta.env.VITE_IMG_API_URL || location.origin);
+// 存储类型: imgur | telegram
+const storageType = ref<string>('imgur');
 // 上传接口
 const uploadAPI = ref<string>(`${import.meta.env.VITE_IMG_API_URL || location.origin}/upload`);
 // 上传配置
