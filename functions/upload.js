@@ -120,7 +120,7 @@ async function uploadToTelegram(imgFile, env) {
       sendFunction = { url: 'sendAnimation', type: 'animation' };
     } else if (fileType === 'image/webp' || fileExt === 'webp') {
       sendFunction = { url: 'sendAnimation', type: 'animation' };
-    } else if (fileExt === 'ico') {
+    } else if (fileExt === 'ico' || fileExt === 'svg' || fileType === 'image/svg+xml') {
       sendFunction = { url: 'sendDocument', type: 'document' };
     } else {
       sendFunction = { url: 'sendPhoto', type: 'photo' };

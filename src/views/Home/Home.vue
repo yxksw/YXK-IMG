@@ -52,7 +52,7 @@ const uploadAPI = computed(() => {
 });
 
 const UploadConfig = ref<any>({
-  AcceptTypes: 'image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.json,.xml,.html,.css,.js,.ts,.zip,.rar,.7z,.tar,.gz',
+  AcceptTypes: 'image/*,image/svg+xml,.svg,.webp,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.json,.xml,.html,.css,.js,.ts,.zip,.rar,.7z,.tar,.gz',
   Max: 0,
   MaxSize: storageType.value === 'telegram' ? 20 : 15,
 });
